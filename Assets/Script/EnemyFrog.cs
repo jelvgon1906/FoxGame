@@ -9,31 +9,22 @@ public class EnemyFrog : MonoBehaviour
     /*public Vector3 startPosition;
     public Vector3 endPosition;*/
     public int damage;
-    
+
 
     public bool movingForward;
     public SpriteRenderer Frog;
-    public Rigidbody2D rbFrog; 
+    public Rigidbody2D rbFrog;
     public float minJumpForce = 100;
     public float maxJumpForce = 150;
     Animator animator;
 
     public void Start()
     {
-
         /*startPosition = transform.position;*/
         movingForward = true;
         animator = gameObject.transform.Find("frog-idle-1").GetComponent<Animator>();
         StartCoroutine(JumpLogic());
     }
-
-    public void Update()
-    {
-
-
-        
-    }
-
     IEnumerator JumpLogic()
     {
         float force = Random.Range(minJumpForce, maxJumpForce);
@@ -43,32 +34,33 @@ public class EnemyFrog : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(Random.Range(minWaitTime, maxWaitTime));
-            
+
             Jump();
-            
+
         }
     }
 
     void Jump()
     {
         int lado;
-        lado = Random.Range(0,1) ;
+        lado = Random.Range(0, 1);
 
         if (lado == 0)
         {
             rbFrog.AddForce(new Vector2(-1, 1) * jump, ForceMode2D.Impulse);
             Frog.flipX = false;
         }
-        else 
+        else
         {
             Frog.flipX = true;
-            rbFrog.AddForce(new Vector2(1, 1) * jump, ForceMode2D.Impulse); 
+            rbFrog.AddForce(new Vector2(1, 1) * jump, ForceMode2D.Impulse);
         }
 
         animator.Play("FrogJump");
 
     }
     
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Player"))
@@ -84,4 +76,14 @@ public class EnemyFrog : MonoBehaviour
             Destroy(gameObject);
         }
     }
+   /* void OnDisable()
+    {
+        StartCoroutine(setactive());
+    }
+    
+    IEnumerator setactive()
+    {
+        yield return new WaitForSeconds(15);
+        gameObject.SetActive(true);
+    }*/
 }

@@ -8,8 +8,7 @@ using UnityEngine.SceneManagement;
 public class PlayerControler : MonoBehaviour
 {
     [Header("Player Info")]
-    public int speed = 5;
-    int startingSpeed;
+    int speed = 5;
     public int jumpPower = 45;
     public int livesLeft = 3;
     public int lives = 3;
@@ -21,6 +20,8 @@ public class PlayerControler : MonoBehaviour
     bool sneaking = false;
     bool god;
     bool ambushing = false;
+    bool ambushCooldown = true;
+    bool playerMovement = true;
 
 
     private SpriteRenderer sprite;
@@ -45,7 +46,7 @@ public class PlayerControler : MonoBehaviour
 
     private void Start()
     {
-        transform.position = Origen;
+        Origen = transform.position;
         rb = GetComponent<Rigidbody2D>();
         RaycastGround = GameObject.Find("RaycastGround");
         sprite = gameObject.transform.Find("Player_Idle").GetComponent<SpriteRenderer>();
@@ -53,7 +54,6 @@ public class PlayerControler : MonoBehaviour
         livesLeft = lives;
         powerUpsLeft = GameObject.FindGameObjectsWithTag("PowerUp").Length;
         totalPowerUps = powerUpsLeft;
-        startingSpeed = speed;
 
     }
 
@@ -84,9 +84,12 @@ public class PlayerControler : MonoBehaviour
         float inputX = Input.GetAxis("Horizontal");
 
         //apply phisic velocity
-        rb.velocity = new Vector2(inputX * speed /** Time.deltaTime*/, rb.velocity.y);
+        if (playerMovement)
+        {
+            rb.velocity = new Vector2(inputX * speed /** Time.deltaTime*/, rb.velocity.y);
+        }
 
-        if (Input.GetKeyDown(KeyCode.Space) && jumpnumber >= 0)
+        if (Input.GetKeyDown(KeyCode.Space) && jumpnumber >= 0 && playerMovement)
         {
             rb.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse); //fuerza como un impulso
             RaycastGround.SetActive(false);
@@ -102,10 +105,15 @@ public class PlayerControler : MonoBehaviour
 
         else if (Input.GetKeyUp(KeyCode.S))
         {
-            speed = speed + sneakSlowing + boostSpeed;
+            speed = speed + sneakSlowing;
+            if (ambushCooldown)
+            {
+                speed = speed + boostSpeed;
+                ambushCooldown = false;
+                ambushing = true;
+                Invoke("ambushOff", 1f);
+            }
             sneaking = false;
-            ambushing = true;
-            Invoke("ambushOff", 1f);
         }
 
         if (rb.velocity.x >= 0f) sprite.flipX = false;
@@ -121,6 +129,7 @@ public class PlayerControler : MonoBehaviour
 
     void ambushOff()
     {
+        ambushCooldown = true;
         speed = speed - boostSpeed;
         ambushing = false;
         god = false;
@@ -224,7 +233,7 @@ public class PlayerControler : MonoBehaviour
             if (ambushing)
             {
                 Fight();
-                /*gameObject.SetActive(false);*/
+                collision.gameObject.SetActive(false);
             }
         }
     }
@@ -235,31 +244,34 @@ public class PlayerControler : MonoBehaviour
             if (ambushing)
             {
                 Fight();
-                /*gameObject.SetActive(false);*/
+                collision.gameObject.SetActive(false);
             }
         }
     }
     void Fight()
     {
         
+        playerMovement = false;
+        rb.velocity = Vector3.zero;
+        /*rb.useAutoMass = false;*/
         animator.Play("PlayerFight");
-        speed = 0;
-        Invoke("speedReset", 1f);
+        Invoke("fightReset", 0.8f);
     }
-    void speedReset()
+    void fightReset()
     {
-        speed = 5;/*startingSpeed;*/
+        /*rb.useAutoMass = true;*/
+        playerMovement = true;
     }
 
     private void PlayerAnimate()
     {
-        if (!isGrounded()) 
+        if (!isGrounded() && playerMovement) 
             animator.Play("PlayerJump");
-        else if (isGrounded() && sneaking)
+        else if (isGrounded() && sneaking && playerMovement)
             animator.Play("PlayerSneak");
-        else if (isGrounded() && Input.GetAxis("Horizontal") != 0)
+        else if (isGrounded() && Input.GetAxis("Horizontal") != 0 && playerMovement)
             animator.Play("PlayerRunning");
-        else if (isGrounded() && Input.GetAxis("Horizontal") == 0)
+        else if (isGrounded() && Input.GetAxis("Horizontal") == 0 && playerMovement)
             animator.Play("PlayerIdle");
             
 

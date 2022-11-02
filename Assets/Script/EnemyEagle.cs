@@ -56,4 +56,5 @@ public class EnemyEagle : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
 }

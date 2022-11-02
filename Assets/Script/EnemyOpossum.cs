@@ -56,4 +56,5 @@ public class EnemyOpossum : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
 }

@@ -6,11 +6,13 @@ using UnityEngine.SceneManagement;
 public class Menu : MonoBehaviour
 {
     public AudioSource audioPick;
+    
     public void startGame()
     {
         audioPick.Play();
         SceneManager.LoadScene("Level 1");
     }
+    
     public void controls()
     {
         audioPick.Play();

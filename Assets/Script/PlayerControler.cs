@@ -5,6 +5,8 @@ using TMPro;
 using Unity.VisualScripting;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using Unity.Burst.CompilerServices;
+
 public class PlayerControler : MonoBehaviour
 {
     [Header("Player Info")]
@@ -13,7 +15,7 @@ public class PlayerControler : MonoBehaviour
     public int livesLeft = 3;
     public int lives = 3;
     public int extraJumps = 0;
-    int jumpnumber;
+    public int jumpnumber = 1;
     public int sneakSlowing = 3;
     private int boostSpeed = 4;
     public Vector3 Origen;
@@ -22,21 +24,24 @@ public class PlayerControler : MonoBehaviour
     bool ambushing = false;
     bool ambushCooldown = true;
     bool playerMovement = true;
+    private bool isGrounded;
 
 
     private SpriteRenderer sprite;
     Animator animator;
     private Rigidbody2D rb;
-    public GameObject RaycastGround;
+    /*public GameObject RaycastGround;*/
+    GameObject GroundDetector;
+    GameManager gameManager;
 
     [Header("Level Data")]
     public int powerUpsLeft;
     public int collectedPowerUps;
     private int totalPowerUps;
     public int levelTime;
+    int timeLeft;
     public AudioSource audioHit, audioPick, audioLose;
     int waterDamage = 1;
-
 
 
     public TextMeshProUGUI txtTime, txtScore;
@@ -48,18 +53,20 @@ public class PlayerControler : MonoBehaviour
     {
         Origen = transform.position;
         rb = GetComponent<Rigidbody2D>();
-        RaycastGround = GameObject.Find("RaycastGround");
+        /*RaycastGround = GameObject.Find("RaycastGround");*/
+        GroundDetector = GameObject.Find("GroundDetector");
         sprite = gameObject.transform.Find("Player_Idle").GetComponent<SpriteRenderer>();
         animator = gameObject.transform.Find("Player_Idle").GetComponent<Animator>();
         livesLeft = lives;
         powerUpsLeft = GameObject.FindGameObjectsWithTag("PowerUp").Length;
         totalPowerUps = powerUpsLeft;
+        gameManager = gameObject.GetComponent<GameManager>();
 
     }
 
     private void FixedUpdate()
     {
-        int timeLeft = levelTime - (int)(Time.time);
+        timeLeft = levelTime - (int)(Time.time);
         int minutes = timeLeft / 60;
         int seconds = timeLeft % 60;
 
@@ -78,6 +85,12 @@ public class PlayerControler : MonoBehaviour
         txtTime.text = (minutes.ToString("00") + ":" + seconds.ToString("00"));
     }
 
+    void howMuchTime()
+    {
+        timeLeft = levelTime;
+        GameManager.instance.levelTimeLeft = timeLeft;
+    }
+
     private void Update()
     {
         // movement from -1 to 1
@@ -89,11 +102,11 @@ public class PlayerControler : MonoBehaviour
             rb.velocity = new Vector2(inputX * speed /** Time.deltaTime*/, rb.velocity.y);
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && jumpnumber >= 0 && playerMovement)
+        if (Input.GetKeyDown(KeyCode.Space) && jumpnumber > 0 && playerMovement)
         {
             rb.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse); //fuerza como un impulso
-            RaycastGround.SetActive(false);
-            Invoke("spawnObject", 0.1f);
+            /*RaycastGround.SetActive(false);*/
+            /*Invoke("spawnObject", 0.1f);*/
             jumpnumber--;  
         }
 
@@ -122,7 +135,7 @@ public class PlayerControler : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Escape)) Application.Quit();
 
-        isGrounded();
+        /*isGrounded();*/
         PlayerAnimate();
         AmbushMechanic();
     }
@@ -148,12 +161,15 @@ public class PlayerControler : MonoBehaviour
         }
     }
 
-    void spawnObject() {
+
+    //RAYCAST FALLABA(checks demasiado rápidos) Y LO HE SUSTITUIDO POU UN TRIGGER MUY AJUSTADO
+
+    /*void spawnRay() {
         jumpnumber--;
-        RaycastGround.SetActive(true);}
-    private bool isGrounded()
+        RaycastGround.SetActive(true);}*/
+    /*private bool isGrounded()
     {
-        /*RaycastHit2D hit = Physics2D.Raycast(transform.position + new Vector3(0,-1.6f,0), Vector2.down, 0.2f);*/
+        *//*RaycastHit2D hit = Physics2D.Raycast(transform.position + new Vector3(0,-1.6f,0), Vector2.down, 0.2f);*//*
         RaycastHit2D hit = Physics2D.Raycast(RaycastGround.transform.position, Vector2.down, 0.2f);
 
 
@@ -166,8 +182,9 @@ public class PlayerControler : MonoBehaviour
         {
             return false;
         }
-        /* return hit.collider != null;*/
-    }
+       
+    }*/
+
 
     public void TakeDamage(int damage)
     {
@@ -179,32 +196,41 @@ public class PlayerControler : MonoBehaviour
             audioHit.Play();
             god = true;
             Invoke("invulnerability", 1f);
-            if (livesLeft >= 3) {
-                heart1.SetActive(true);
-                heart2.SetActive(true);
-                heart3.SetActive(true); }
-            else if (livesLeft == 2)
-            {
-                heart1.SetActive(true);
-                heart2.SetActive(true);
-                heart3.SetActive(false);
-            } else if (livesLeft == 1)
-            {
-                heart1.SetActive(true);
-                heart2.SetActive(false);
-                heart3.SetActive(false);
-            }
-            else
-            {
-                heart1.SetActive(false);
-                heart2.SetActive(false);
-                heart3.SetActive(false);
-            }
-            if (livesLeft <= 0) {
-                Invoke("loseLevel", 3f);
-                audioLose.Play();
-                /*GameManager.instance.Win = false;*/
-            }
+            checkLives();
+        }
+    }
+
+    void checkLives()
+    {
+        if (livesLeft >= 3)
+        {
+            heart1.SetActive(true);
+            heart2.SetActive(true);
+            heart3.SetActive(true);
+        }
+        else if (livesLeft == 2)
+        {
+            heart1.SetActive(true);
+            heart2.SetActive(true);
+            heart3.SetActive(false);
+        }
+        else if (livesLeft == 1)
+        {
+            heart1.SetActive(true);
+            heart2.SetActive(false);
+            heart3.SetActive(false);
+        }
+        else
+        {
+            heart1.SetActive(false);
+            heart2.SetActive(false);
+            heart3.SetActive(false);
+        }
+        if (livesLeft <= 0)
+        {
+            Invoke("loseLevel", 3f);
+            audioLose.Play();
+            /*GameManager.instance.Win = false;*/
         }
     }
     void invulnerability(){
@@ -214,20 +240,35 @@ public class PlayerControler : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        //SALTO
+        if (collision != null)
+        {
+            jumpnumber = 1 + extraJumps ;
+            isGrounded = true;
+        }else
+        {
+            isGrounded = false;
+        }
+        //DAÑO AGUA
         if (collision.gameObject.CompareTag("Water"))
         {
             transform.position = Origen;
             TakeDamage(waterDamage);
         }
-
+        //DETECTAR POWERUP
         if(collision.gameObject.CompareTag("PowerUp"))
         {
+            if (livesLeft < 3)
+            {
+                livesLeft++;
+                checkLives();
+            }else GameManager.instance.SendMessage("scorePlus");
             audioPick.Play();
             collectedPowerUps++;
             Destroy(collision.gameObject);
             Invoke("infoPowerUp", 0.1f); 
         }
-
+        //DETECTAR ENEMIGO
         if (collision.gameObject.CompareTag("Enemy"))
         {
             if (ambushing)
@@ -239,6 +280,7 @@ public class PlayerControler : MonoBehaviour
     }
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        //DETECTAR ENEMIGO
         if (collision.gameObject.CompareTag("Enemy"))
         {
             if (ambushing)
@@ -248,30 +290,36 @@ public class PlayerControler : MonoBehaviour
             }
         }
     }
+
+    //EMBOSCADAS
     void Fight()
     {
-        
         playerMovement = false;
         rb.velocity = Vector3.zero;
         /*rb.useAutoMass = false;*/
         animator.Play("PlayerFight");
+        audioHit.Play();
         Invoke("fightReset", 0.8f);
     }
     void fightReset()
     {
         /*rb.useAutoMass = true;*/
+        livesLeft--;
+        checkLives();
         playerMovement = true;
     }
 
+    //ANIMACIONES
+
     private void PlayerAnimate()
     {
-        if (!isGrounded() && playerMovement) 
+        if (!isGrounded && playerMovement) 
             animator.Play("PlayerJump");
-        else if (isGrounded() && sneaking && playerMovement)
+        else if (isGrounded && sneaking && playerMovement)
             animator.Play("PlayerSneak");
-        else if (isGrounded() && Input.GetAxis("Horizontal") != 0 && playerMovement)
+        else if (isGrounded && Input.GetAxis("Horizontal") != 0 && playerMovement)
             animator.Play("PlayerRunning");
-        else if (isGrounded() && Input.GetAxis("Horizontal") == 0 && playerMovement)
+        else if (isGrounded && Input.GetAxis("Horizontal") == 0 && playerMovement)
             animator.Play("PlayerIdle");
             
 
@@ -280,31 +328,34 @@ public class PlayerControler : MonoBehaviour
         /*((rb.velocity.x >= 0.1f) || (rb.velocity.x < 0.1f) && (rb.velocity.y == 0f)) animator.Play("PlayerRunning");*/
     }
 
+    //CANTIDAD DE POWER UPS Y LOS RESTANTES
+
     private void infoPowerUp()
     {
         powerUpsLeft = GameObject.FindGameObjectsWithTag("PowerUp").Length;
-        Debug.Log("PowerUps" + GameObject.FindGameObjectsWithTag("PowerUp").Length);
+        /*Debug.Log("PowerUps" + GameObject.FindGameObjectsWithTag("PowerUp").Length);*/
 
         if (powerUpsLeft == 0)
         {
-            Invoke("winLevel", 3f);
+            Invoke("nextLevel", 3f);
             god = true;
+
+
         }
     }
 
-    
-
-    private void winLevel(/*bool win*/)
+    //VICTORIA
+    private void nextLevel()
     {
-        SceneManager.LoadScene("End");
-        /*GameManager.instance.Win = win;
-        GameManager.instance.Score = (livesLeft * 100) + (levelTime * 10);*/
+        audioPick.Play();
+        GameManager.instance.SendMessage("NextLevel");
 
     }
-
+    //DERRORTA
     private void loseLevel()
     {
-        SceneManager.LoadScene("Level 1");
+        Scene scene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(scene.name);
     }
 
 

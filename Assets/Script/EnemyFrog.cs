@@ -14,9 +14,10 @@ public class EnemyFrog : MonoBehaviour
     public bool movingForward;
     public SpriteRenderer Frog;
     public Rigidbody2D rbFrog;
-    public float minJumpForce = 100;
-    public float maxJumpForce = 150;
+    public float minJumpForce = 8;
+    public float maxJumpForce = 12;
     Animator animator;
+    float lado;
 
     public void Start()
     {
@@ -27,7 +28,7 @@ public class EnemyFrog : MonoBehaviour
     }
     IEnumerator JumpLogic()
     {
-        float force = Random.Range(minJumpForce, maxJumpForce);
+        jump = Random.Range(minJumpForce, maxJumpForce);
         float minWaitTime = 3;
         float maxWaitTime = 6;
 
@@ -42,12 +43,12 @@ public class EnemyFrog : MonoBehaviour
 
     void Jump()
     {
-        int lado;
-        lado = Random.Range(0, 1);
-
-        if (lado == 0)
+        
+        lado = Random.Range(-1,1);
+        print (lado);
+        if (lado >= 0)
         {
-            rbFrog.AddForce(new Vector2(-1, 1) * jump, ForceMode2D.Impulse);
+            rbFrog.AddForce(new Vector2(-1, 1) * jump, ForceMode2D.Impulse );
             Frog.flipX = false;
         }
         else
@@ -76,6 +77,7 @@ public class EnemyFrog : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
    /* void OnDisable()
     {
         StartCoroutine(setactive());

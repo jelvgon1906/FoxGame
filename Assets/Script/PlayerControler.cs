@@ -24,13 +24,22 @@ public class PlayerControler : MonoBehaviour
     bool ambushing = false;
     bool ambushCooldown = true;
     bool playerMovement = true;
-    private bool isGrounded;
+    /*private bool isGrounded;*/
+    float inputX, inputY;
+    CapsuleCollider2D m_Collider;
+   
+
+    //Ladder
+    public float distance;
+    public LayerMask WhatIsLadder;
+    bool isClimbing;
+    bool isClimbingAnim;
 
 
     private SpriteRenderer sprite;
     Animator animator;
     private Rigidbody2D rb;
-    /*public GameObject RaycastGround;*/
+    public GameObject RaycastGround;
     GameObject GroundDetector;
     GameManager gameManager;
 
@@ -53,15 +62,16 @@ public class PlayerControler : MonoBehaviour
     {
         Origen = transform.position;
         rb = GetComponent<Rigidbody2D>();
-        /*RaycastGround = GameObject.Find("RaycastGround");*/
-        GroundDetector = GameObject.Find("GroundDetector");
+        RaycastGround = GameObject.Find("RaycastGround");
+        /*GroundDetector = GameObject.Find("GroundDetector");*/
         sprite = gameObject.transform.Find("Player_Idle").GetComponent<SpriteRenderer>();
         animator = gameObject.transform.Find("Player_Idle").GetComponent<Animator>();
         livesLeft = lives;
         powerUpsLeft = GameObject.FindGameObjectsWithTag("PowerUp").Length;
         totalPowerUps = powerUpsLeft;
         gameManager = gameObject.GetComponent<GameManager>();
-
+        m_Collider = GetComponent<CapsuleCollider2D>();
+        
     }
 
     private void FixedUpdate()
@@ -73,16 +83,16 @@ public class PlayerControler : MonoBehaviour
         /*Debug.Log(minutes.ToString("00") + ":" + seconds.ToString("00"));*/
         if (levelTime - (int)(Time.time) <= 0)
         {
-            Invoke("loseLevel", 3f);
-            /*GameManager.instance.Win = false;*/
-            audioLose.Play();
-            /*Debug.Log("loose times up");*/
+            TimeOver();
         }
 
-
-
+        
+        //Time clock
         txtScore.text = collectedPowerUps + "/" + totalPowerUps ; 
         txtTime.text = (minutes.ToString("00") + ":" + seconds.ToString("00"));
+        TimeOver();
+        howMuchTime();
+
     }
 
     void howMuchTime()
@@ -94,7 +104,7 @@ public class PlayerControler : MonoBehaviour
     private void Update()
     {
         // movement from -1 to 1
-        float inputX = Input.GetAxis("Horizontal");
+        inputX = Input.GetAxis("Horizontal");
 
         //apply phisic velocity
         if (playerMovement)
@@ -102,25 +112,30 @@ public class PlayerControler : MonoBehaviour
             rb.velocity = new Vector2(inputX * speed /** Time.deltaTime*/, rb.velocity.y);
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && jumpnumber > 0 && playerMovement)
+        if (Input.GetKeyDown(KeyCode.Space) && jumpnumber > 0 && playerMovement && !isClimbing && !sneaking)
         {
+            rb.velocity = Vector3.zero;
             rb.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse); //fuerza como un impulso
-            /*RaycastGround.SetActive(false);*/
-            /*Invoke("spawnObject", 0.1f);*/
-            jumpnumber--;  
+            RaycastGround.SetActive(false);
+            Invoke("spawnRay", 0.1f);
         }
 
         if (Input.GetKeyDown(KeyCode.S))
         {
             speed = speed - sneakSlowing;
             sneaking = true;
+            m_Collider.size = new Vector2(0.89f,1f);
+            m_Collider.offset = new Vector2(0f, -0.48f);
         }
 
         else if (Input.GetKeyUp(KeyCode.S))
         {
             speed = speed + sneakSlowing;
-            if (ambushCooldown)
+            m_Collider.size = new Vector2(0.89f,1.4f);
+            m_Collider.offset = new Vector2(0f,-0.3f);
+            if (ambushCooldown && isGrounded() && !isClimbing)
             {
+                sprite.color = Color.yellow;
                 speed = speed + boostSpeed;
                 ambushCooldown = false;
                 ambushing = true;
@@ -129,23 +144,26 @@ public class PlayerControler : MonoBehaviour
             sneaking = false;
         }
 
-        if (rb.velocity.x >= 0f) sprite.flipX = false;
+        if (rb.velocity.x > 0f) sprite.flipX = false;
 
         else if (rb.velocity.x < 0f) sprite.flipX = true;
 
-        if (Input.GetKeyDown(KeyCode.Escape)) Application.Quit();
+        /*if (Input.GetKeyDown(KeyCode.Escape)) Application.Quit();*/
 
-        /*isGrounded();*/
+        isGrounded();
         PlayerAnimate();
         AmbushMechanic();
+        Ladder();
     }
 
+    
     void ambushOff()
     {
         ambushCooldown = true;
         speed = speed - boostSpeed;
         ambushing = false;
         god = false;
+        sprite.color = Color.white;
     }
 
     private void AmbushMechanic()
@@ -160,31 +178,67 @@ public class PlayerControler : MonoBehaviour
             animator.speed = 1F;
         }
     }
-
-
-    //RAYCAST FALLABA(checks demasiado rápidos) Y LO HE SUSTITUIDO POU UN TRIGGER MUY AJUSTADO
-
-    /*void spawnRay() {
-        jumpnumber--;
-        RaycastGround.SetActive(true);}*/
-    /*private bool isGrounded()
+    private bool isGrounded()
     {
-        *//*RaycastHit2D hit = Physics2D.Raycast(transform.position + new Vector3(0,-1.6f,0), Vector2.down, 0.2f);*//*
-        RaycastHit2D hit = Physics2D.Raycast(RaycastGround.transform.position, Vector2.down, 0.2f);
+
+        RaycastHit2D hit = Physics2D.Raycast(RaycastGround.transform.position, Vector2.down, 0.05f);
 
 
         if (hit.collider != null)
         {
-            jumpnumber = extraJumps;
+            jumpnumber = 1 + extraJumps;
             return true;
         }
         else
         {
             return false;
         }
-       
-    }*/
 
+    }
+    void Ladder()
+    {
+        //Ladder
+
+        RaycastHit2D hitInfo = Physics2D.Raycast(RaycastGround.transform.position, Vector2.up, distance, WhatIsLadder);
+        if (hitInfo.collider != null)
+        {
+            if (Input.GetKeyDown(KeyCode.W))
+            {
+                isClimbingAnim = true;
+            }
+            else if ((Input.GetKey(KeyCode.A) || (Input.GetKey(KeyCode.D) || (Input.GetKey(KeyCode.Space))))) isClimbingAnim = false;
+            if (Input.GetKey(KeyCode.W) || (Input.GetKey(KeyCode.W)))
+            {
+                isClimbing = true;
+            }
+            else if ((Input.GetKey(KeyCode.A) || (Input.GetKey(KeyCode.D) || (Input.GetKey(KeyCode.Space)))))
+                {
+                isClimbingAnim = false;
+                isClimbing = false;
+                rb.velocity = new Vector2(inputX * speed /** Time.deltaTime*/, rb.velocity.y);
+                /*RaycastGround.SetActive(false);
+                Invoke("spawnRay", 0.1f);*/
+            }
+            
+        }
+
+        if (isClimbing == true && hitInfo.collider != null)
+        {
+            inputY = Input.GetAxisRaw("Vertical");
+
+            rb.velocity = new Vector2(0, inputY * 3.5f);/*
+            rb.AddForce(Vector2.up * speed, ForceMode2D.Force);*/
+            rb.gravityScale = 0;
+        }
+        else rb.gravityScale = 1;
+
+    }
+
+    void spawnRay()
+    {
+        jumpnumber = 0 + extraJumps;
+        RaycastGround.SetActive(true);
+    }
 
     public void TakeDamage(int damage)
     {
@@ -233,6 +287,16 @@ public class PlayerControler : MonoBehaviour
             /*GameManager.instance.Win = false;*/
         }
     }
+
+    void TimeOver()
+    {
+        if(timeLeft <= 0)
+        {
+            audioLose.Play();
+            SceneManager.LoadScene("Menu");
+        }
+        
+    }
     void invulnerability(){
         god = false;
         sprite.color = Color.white;
@@ -240,15 +304,16 @@ public class PlayerControler : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        //SALTO
-        if (collision != null)
+        //SALTO con groundDetector
+        /*if (collision != null)
         {
             jumpnumber = 1 + extraJumps ;
             isGrounded = true;
         }else
         {
             isGrounded = false;
-        }
+        }*/
+
         //DAÑO AGUA
         if (collision.gameObject.CompareTag("Water"))
         {
@@ -262,7 +327,8 @@ public class PlayerControler : MonoBehaviour
             {
                 livesLeft++;
                 checkLives();
-            }else GameManager.instance.SendMessage("scorePlus");
+            }
+            else GameManager.instance.scorePlus();
             audioPick.Play();
             collectedPowerUps++;
             Destroy(collision.gameObject);
@@ -277,6 +343,7 @@ public class PlayerControler : MonoBehaviour
                 collision.gameObject.SetActive(false);
             }
         }
+
     }
     private void OnCollisionEnter2D(Collision2D collision)
     {
@@ -294,6 +361,7 @@ public class PlayerControler : MonoBehaviour
     //EMBOSCADAS
     void Fight()
     {
+        sprite.color = Color.white;
         playerMovement = false;
         rb.velocity = Vector3.zero;
         /*rb.useAutoMass = false;*/
@@ -304,24 +372,33 @@ public class PlayerControler : MonoBehaviour
     void fightReset()
     {
         /*rb.useAutoMass = true;*/
-        livesLeft--;
-        checkLives();
-        playerMovement = true;
+        if (!playerMovement) 
+        {
+            livesLeft--;
+            checkLives();
+            playerMovement = true; 
+        }
     }
 
     //ANIMACIONES
 
     private void PlayerAnimate()
     {
-        if (!isGrounded && playerMovement) 
+        if (!isGrounded() && playerMovement)
+        {
             animator.Play("PlayerJump");
-        else if (isGrounded && sneaking && playerMovement)
+        } 
+        else if (isGrounded() && sneaking && playerMovement)
             animator.Play("PlayerSneak");
-        else if (isGrounded && Input.GetAxis("Horizontal") != 0 && playerMovement)
+        else if (isGrounded() && Input.GetAxis("Horizontal") != 0 && playerMovement)
             animator.Play("PlayerRunning");
-        else if (isGrounded && Input.GetAxis("Horizontal") == 0 && playerMovement)
+        else if (isGrounded() && Input.GetAxis("Horizontal") == 0 && playerMovement && !isClimbingAnim)
             animator.Play("PlayerIdle");
-            
+        else if (isClimbingAnim)
+        {
+            animator.Play("PlayerClimb");
+        }
+
 
 
 
@@ -339,7 +416,7 @@ public class PlayerControler : MonoBehaviour
         {
             Invoke("nextLevel", 3f);
             god = true;
-
+            sprite.color = Color.cyan;
 
         }
     }

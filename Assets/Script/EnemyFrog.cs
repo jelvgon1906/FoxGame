@@ -45,7 +45,6 @@ public class EnemyFrog : MonoBehaviour
     {
         
         lado = Random.Range(-1,1);
-        print (lado);
         if (lado >= 0)
         {
             rbFrog.AddForce(new Vector2(-1, 1) * jump, ForceMode2D.Impulse );
